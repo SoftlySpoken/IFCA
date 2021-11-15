@@ -43,7 +43,7 @@ $ ./testBatch dataset_path dataset_name num_partitions mode
 
 ### Datasets
 
-The datasets that we used in the experiments can be downloaded via the following links: [real datasets](https://disk.pku.edu.cn:443/link/AC690DDF7CC1F8221D5CA61FBCB2732D); [synthetic datasets](https://disk.pku.edu.cn:443/link/BB9CB60B196181BC5B9430C7DDB1F530).
+The datasets that we used in the experiments can be downloaded via the following links: [real datasets](https://disk.pku.edu.cn:443/link/AC690DDF7CC1F8221D5CA61FBCB2732D); [synthetic datasets](https://disk.pku.edu.cn:443/link/BB9CB60B196181BC5B9430C7DDB1F530). One of the smaller datasets, Enron, is included in this repository (enron.tar.bz2) as an example.
 
 If you would like to run `testBatch` on a custom dataset, please convert it to the following format:
 
