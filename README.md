@@ -1,4 +1,4 @@
-This is the repository of code accompanying the paper "Push-and-Contract: Fast Reachability Processing over Large-Scale Dynamic Graphs."
+This is the repository accompanying the paper "IFCA: Index-Free Commnunity-Aware Reachability Processing Over Large Dynamic Graphs."
 
 Note: `SFMT-src-1.5.1` is used to choose source and destination vertices uniformly at random during query generation, which is open-source and originally downloaded [here](http://www.math.sci.hiroshima-u.ac.jp/m-mat/MT/SFMT/).
 
@@ -34,16 +34,16 @@ To run the test driver:
 $ ./testBatch dataset_path dataset_name num_partitions mode
 ```
 
-`mode` indicates the tested methods.
+`mode` indicates the tested methods (as reported in Section 6.2).
 
-- 0: Bidirectional breadth first search.
-- 1: Push (P, the baseline).
-- 2: Push + Contraction (P+C).
-- 3: Push + Contraction + Traversal (P+C+T, our full proposed method).
+- 0: BiBFS.
+- 1: Base.
+- 2: Contract.
+- 3: IFCA.
 
 ### Datasets
 
-The datasets that we used in the experiments can be downloaded via the following links: [real datasets](https://disk.pku.edu.cn:443/link/AC690DDF7CC1F8221D5CA61FBCB2732D); [synthetic datasets](https://disk.pku.edu.cn:443/link/BB9CB60B196181BC5B9430C7DDB1F530). One of the smaller datasets, Enron, is included in this repository (enron.tar.bz2) as an example.
+One of the real datasets, Enron, is included in this repository (enron.tar.bz2) as an example.
 
 If you would like to run `testBatch` on a custom dataset, please convert it to the following format:
 
@@ -77,5 +77,5 @@ You may use `genQueryBatch` to generate queries, or generate your own queries. T
 Q source destination timestamp timestamp ground_truth
 ```
 
-`ground_truth == 0` indicates that it is a positive query; `ground_truth == -1` indicates that it is a negative query. Note that the `timestamp` is treated as a dummy in the current implementation of `testBatch`; but you could circumvent that if you implement your own driver program for query processing.
+`ground_truth >= 0` indicates that it is a positive query; `ground_truth == -1` indicates that it is a negative query. Note that the `timestamp` is treated as a dummy in the current implementation of `testBatch`; but you could circumvent that if you implement your own driver program for query processing.
 
