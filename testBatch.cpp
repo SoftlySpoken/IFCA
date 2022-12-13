@@ -2,6 +2,8 @@
 
 using namespace std;
 
+unsigned numPosQuery = 0, numNegQuery = 0;
+
 void RunFinal(Base& g , double c, int mode)
 {
     struct timespec start_at, end_at;
@@ -18,19 +20,22 @@ void RunFinal(Base& g , double c, int mode)
 
         bool res = g.reachfinal(sNode, tNode, mode, rmax);
 
-        if (res && hopCnt < 0)
-        {
-            cout<<"[ERROR] False positive, s = " << sNode << ", t = " << tNode << ", hopCnt = " << hopCnt << endl;
-            exit(0);
-        }
-        else if (!res && hopCnt >= 0)
-        {
-            // cout << "False negative, s = " << sNode << ", t = " << tNode << ", hopCnt = " << hopCnt << endl;
-            g.falseNegatives++;
+        if (hopCnt < 0) {
+            numNegQuery++;
+            // if (res) {
+            //     cout<<"[ERROR] False positive, s = " << sNode << ", t = " << tNode << ", hopCnt = " << hopCnt << endl;
+            //     exit(0);
+            // }
+        } else {
+            numPosQuery++;
+            // if (!res) {
+            //     cout << "False negative, s = " << sNode << ", t = " << tNode << ", hopCnt = " << hopCnt << endl;
+            //     g.falseNegatives++;
+            // }
         }
 
         qCnt++;
-        if (qCnt % 10000 == 0)
+        if (qCnt % 1000 == 0)
         {
             cout << "query fin " << qCnt << endl;
             double prec = (double)(g.numQueries + qCnt - g.falseNegatives) / (double)(g.numQueries + qCnt);
@@ -43,9 +48,13 @@ void RunFinal(Base& g , double c, int mode)
 
 int main(int argc, char **argv)
 {
-	if (argc != 5)
+	if (!(argc >= 6 && argc <= 9))
     {
-        printf("Usage: %s path_to_file graph_name num_partitions mode\n", argv[0]);
+        printf("Usage: %s path_to_file graph_name num_partitions mode rmax [alpha=0.2] [start_ratio=100] [step=10]\n", argv[0]);
+        printf("You entered:");
+        for (int i = 0; i < argc; i++)
+            printf("%s ", argv[i]);
+        printf("\n");
         return -1;
     }
 
@@ -57,15 +66,29 @@ int main(int argc, char **argv)
     int mode = atoi(argv[4]);
 	int querySize = 1000;  // Meaningless except for generating query
     double theta = 1;
-    double alpha = 0.2;
+    double alpha = 0.2, start_ratio = 100, step = 10;
+    // double currRmax = 1e-7;  // Only meaningful for Push (approximate method)
+    double currRmax = atof(argv[5]);
+    if (argc >= 7)
+    {
+        alpha = atof(argv[6]);
+        if (argc >= 8)
+        {
+            start_ratio = atof(argv[7]);
+            if (argc == 9)
+                step = atof(argv[8]);
+        }
+    }
 
-    double currRmax = 1e-4;  // Only meaningful for Push (approximate method)
-
-	Base g(graphFile, updateFile, queryFile, querySize, theta, alpha, num_partitions);
+	Base g(graphFile, updateFile, queryFile, querySize, theta, alpha, num_partitions, start_ratio, step);
 
     // Update and query in batches
     char currUpdateFile[FILELEN], currQueryFile[FILELEN];
-    printf("----------\nMode = %d\n", mode);
+    printf("Command: ");
+    for (int i = 0; i < argc; i++)
+        printf("%s ", argv[i]);
+    printf("\n");
+    printf("----------\nMode = %d, rmax = %f, alpha = %f\n", mode, currRmax, alpha);
     double prec;
 
     struct timespec start_at, end_at;
@@ -92,9 +115,15 @@ int main(int argc, char **argv)
 
         // Obtain prec
         prec = (double)(curr_g.numQueries - curr_g.falseNegatives) / (double)(curr_g.numQueries);
-        printf("Precision = %lf, ", prec);
-        printf("Update time = %lf s, #Updates = %d, ", curr_g.timeUpdates, curr_g.numUpdates);
-        printf("Query time = %lf ms, #Queries = %d\n", curr_g.timeQueries, curr_g.numQueries);
+        printf("Precision = %lf (%d / %d)\n", prec, curr_g.numQueries - curr_g.falseNegatives, curr_g.numQueries);
+        printf("Update time = %lf s, #Updates = %d, Avg update time = %lf\n", curr_g.timeUpdates, curr_g.numUpdates, \
+            (double)(curr_g.timeUpdates) / (double)(curr_g.numUpdates));
+        printf("Query time = %lf ms, #Queries = %d, Avg query time = %lf\n", curr_g.timeQueries, curr_g.numQueries, \
+            (double)(curr_g.timeQueries) / (double)(curr_g.numQueries));
+        printf("Positive query time = %lf ms, #Queries = %d, Avg positive query time = %lf\n", curr_g.timePosQueries, curr_g.numQueries - curr_g.falseNegatives, \
+            (double)(curr_g.timePosQueries) / (double)(numPosQuery));
+        printf("Negative query time = %lf ms, #Queries = %d, Avg negative query time = %lf\n", curr_g.timeNegQueries, curr_g.falseNegatives, \
+            (double)(curr_g.timeNegQueries) / (double)(numNegQuery));
     }
 
     return 0;

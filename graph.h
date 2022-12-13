@@ -306,6 +306,25 @@ public:
         return -1;
     }
 
+    void getBfsVerts(int sourceNode, unordered_set<int> &ret) {
+        queue<int> q;
+        q.push(sourceNode);
+        ret.clear();
+        ret.emplace(sourceNode);
+
+        int cur;
+        while (!q.empty()) {
+            cur = q.front();
+            q.pop();
+            for (auto adj : fwdG[cur]) {
+                if (ret.find(adj) == ret.end()) {
+                    q.push(adj);
+                    ret.emplace(adj);
+                }
+            }
+        }
+    }
+
     void GenerateQueryToFile(char *currQueryFile, int num_part_query, int timestamp)
     {
         int positiveNum = 0;
@@ -337,6 +356,85 @@ public:
         fclose(queryPtr);
 
         printf("#positive queries = %d, #negative queries = %d\n", positiveNum, num_part_query - positiveNum);
+    }
+
+    void GenerateQueryToFileEvenSplit(char *currQueryFile, int num_part_query, int timestamp)
+    {
+        int positiveNum = 0;
+        int sNode, tNode, hopCnt;
+        bool s = false;
+        bool t = false;
+        FILE *queryPtr = fopen(currQueryFile, "w");
+
+        // Collate pos & neg separately
+        vector<tuple<int, int, int>> posQuery, negQuery;
+
+        // for (int i = 0; i < num_part_query; i++)
+        while (posQuery.size() < num_part_query) {
+            // Sample node pair
+            sNode = flip.Gen_Max() % n;
+            if (outDeg[sNode] == 0) continue;
+            tNode = flip.Gen_Max() % n;
+            if (sNode == tNode || inDeg[tNode] == 0) continue;
+
+            // Compute hop count
+            bfsMark = vector<int>(n,0);
+            hopCnt = BFS(sNode, tNode);
+
+            if (hopCnt >= 0) {
+                positiveNum++;
+                posQuery.emplace_back(sNode, tNode, hopCnt);
+            } else if (negQuery.size() < num_part_query)
+                negQuery.emplace_back(sNode, tNode, hopCnt);
+        }
+
+        // If neg not enough, generate more neg
+        // Find reachable vertices first, then draw randomly until not in reachable set
+        int batchSz, curSz;
+        int maxBatchSz = num_part_query / 250;
+        if (maxBatchSz < 1) maxBatchSz = 1;
+        unordered_set<int> reachable;
+        // cout << negQuery.size() << ' ' << num_part_query << endl;
+        while (negQuery.size() < num_part_query) {
+            sNode = flip.Gen_Max() % n;
+            if (outDeg[sNode] == 0) {
+                // cout << "Case 1: " << sNode << endl;
+                continue;
+            }
+            reachable.clear();
+            getBfsVerts(sNode, reachable);
+            if (reachable.size() > n / 2) {
+                // cout << "Case 2: " << sNode << endl;
+                continue;
+            }
+            curSz = 0;
+            batchSz = flip.Gen_Max() % maxBatchSz;
+            if (batchSz < 1) batchSz = 1;
+            while (curSz < batchSz && negQuery.size() < num_part_query) {
+                tNode = flip.Gen_Max() % n;
+                if (!reachable.empty() && reachable.find(tNode) != reachable.end()) continue;
+                curSz++;
+                negQuery.emplace_back(sNode, tNode, -1);
+                // cout << sNode << ", " << tNode << endl;
+            }
+        }
+
+        // Shuffle neg queries
+        std::random_device rd;
+        std::default_random_engine rng(rd());
+        shuffle(negQuery.begin(), negQuery.end(), rng);
+        
+        // Write to file
+        for (auto pos : posQuery)
+            fprintf(queryPtr, "Q %d %d %d %d %d\n", get<0>(pos), get<1>(pos), 
+                timestamp, timestamp, get<2>(pos));
+        for (auto neg : negQuery)
+            fprintf(queryPtr, "Q %d %d %d %d %d\n", get<0>(neg), get<1>(neg), 
+                timestamp, timestamp, get<2>(neg));
+
+        fclose(queryPtr);
+
+        printf("#positive queries = %d, #negative queries = %d\n", posQuery.size(), negQuery.size());
     }
 
     double timeDiff(struct timespec start_at, struct timespec end_at)

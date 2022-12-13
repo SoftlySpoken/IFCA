@@ -11,9 +11,9 @@ int main(int argc, char **argv)
 	char graphFile[FILELEN], updateFile[FILELEN], queryFile[FILELEN];
 	sprintf(graphFile, "%s/graph.%s", argv[1], argv[2]);
 	sprintf(updateFile, "%s/update.%s", argv[1], argv[2]);
-	sprintf(queryFile, "%s/query.%s", argv[1], argv[2]);
+	sprintf(queryFile, "%s/evenSplit/query.%s", argv[1], argv[2]);
 	int num_partitions = atoi(argv[3]), num_total_query = atoi(argv[4]);
-	int num_part_query = num_total_query / num_partitions;
+	int num_part_query = num_total_query / num_partitions * 0.9;
 
 	Graph g(graphFile, updateFile, queryFile, num_part_query);
 	g.LoadGraph(num_partitions);
@@ -33,6 +33,6 @@ int main(int argc, char **argv)
 		// Generate query
 		printf("%d-th gen query...\n", i);
 		sprintf(currQueryFile, "%s%d", queryFile, i);
-		g.GenerateQueryToFile(currQueryFile, num_part_query, timestamp);
+		g.GenerateQueryToFileEvenSplit(currQueryFile, num_part_query, timestamp);
 	}
 }
