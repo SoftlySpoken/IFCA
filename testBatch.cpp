@@ -12,7 +12,8 @@ void RunFinal(Base& g , double c, int mode)
     double rmax = c;
     fflush(stdout);
 
-    int qCnt = 0;
+    int qCnt = 0, miniBatchSz = 5000;
+    double prevTime = -1, avgTime = 0;
     for( auto q : g.QueryList ){
         tie(sNode,tNode,hopCnt) = q;
         if (sNode == tNode)
@@ -28,19 +29,25 @@ void RunFinal(Base& g , double c, int mode)
             // }
         } else {
             numPosQuery++;
-            // if (!res) {
-            //     cout << "False negative, s = " << sNode << ", t = " << tNode << ", hopCnt = " << hopCnt << endl;
-            //     g.falseNegatives++;
-            // }
+            if (!res) {
+                // cout << "False negative, s = " << sNode << ", t = " << tNode << ", hopCnt = " << hopCnt << endl;
+                g.falseNegatives++;
+            }
         }
 
         qCnt++;
-        if (qCnt % 1000 == 0)
+        if (qCnt % miniBatchSz == 0)
         {
             cout << "query fin " << qCnt << endl;
             double prec = (double)(g.numQueries + qCnt - g.falseNegatives) / (double)(g.numQueries + qCnt);
             printf("Precision = %lf, ", prec);
             printf("Query time = %lf ms\n", g.timeQueries);
+            if (hopCnt < 0) printf("Negative, ");
+            else printf("Positive, ");
+            if (prevTime == -1) avgTime = g.timeQueries / (double)miniBatchSz;
+            else avgTime = (g.timeQueries - prevTime) / (double)miniBatchSz;
+            printf("avg query time = %lf\n", avgTime);
+            prevTime = g.timeQueries;
         }
     }
     g.numQueries += g.QueryList.size();
@@ -61,7 +68,7 @@ int main(int argc, char **argv)
     char graphFile[FILELEN], updateFile[FILELEN], queryFile[FILELEN];
     sprintf(graphFile, "%s/graph.%s", argv[1], argv[2]);
     sprintf(updateFile, "%s/update.%s", argv[1], argv[2]);
-    sprintf(queryFile, "%s/query.%s", argv[1], argv[2]);
+    sprintf(queryFile, "%s/evenSplit/query.%s", argv[1], argv[2]);
     int num_partitions = atoi(argv[3]);
     int mode = atoi(argv[4]);
 	int querySize = 1000;  // Meaningless except for generating query
