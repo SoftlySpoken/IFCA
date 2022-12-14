@@ -1549,7 +1549,7 @@ public:
             case 0: res = BBFS(sourceNode, targetNode); break;
             case 1: res = Push(sourceNode, targetNode, init_rmax); break;
             case 2: res = PushContract(sourceNode, targetNode, init_rmax); break;
-            case 3: res = PushContractTraversal(sourceNode, targetNode, init_rmax, 1); break;
+            case 3: res = PushContractTraversal(sourceNode, targetNode, init_rmax); break;
         }
         clock_gettime(CLOCK_MONOTONIC, &end_at);
         double elapsed = timeDiff(start_at, end_at);
