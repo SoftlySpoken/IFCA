@@ -49,18 +49,15 @@ public:
 
     void InitPara(int sourceNode = 0, int targetNode = 0)
     {
-        for(int i = 0 ; i <= n ; i++ )
-        {
-            residue1[i] = 0;
-            residue2[i] = 0;
-            l1[i] = -1;
-            l2[i] = -1;
-            fSetMark[i] = -1;
-            nodetosuper1[i] = -1;
-            nodetosuper2[i] = -1;
-            explored1[i] = false;
-            explored2[i] = false;
-        }
+        residue1.assign(n, 0);
+        residue2.assign(n, 0);
+        l1.assign(n, -1);
+        l2.assign(n, -1);
+        // fSetMark.assign(n, -1);
+        nodetosuper1.assign(n, -1);
+        nodetosuper2.assign(n, -1);
+        explored1.assign(n, -1);
+        explored2.assign(n, -1);
     }
 
     int BBFS(int sourceNode, int targetNode)
