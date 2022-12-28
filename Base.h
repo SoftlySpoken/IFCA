@@ -56,8 +56,8 @@ public:
         // fSetMark.assign(n, -1);
         nodetosuper1.assign(n, -1);
         nodetosuper2.assign(n, -1);
-        explored1.assign(n, -1);
-        explored2.assign(n, -1);
+        explored1.assign(n, false);
+        explored2.assign(n, false);
     }
 
     int BBFS(int sourceNode, int targetNode)
