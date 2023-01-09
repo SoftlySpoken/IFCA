@@ -2,7 +2,8 @@
 
 using namespace std;
 
-unsigned numPosQuery = 0, numNegQuery = 0;
+unsigned numPosQuery = 0, numNegQuery = 0, numImmNegQuery = 0;
+bool runOracle = true;
 
 void RunFinal(Base& g , double c, int mode)
 {
@@ -19,20 +20,19 @@ void RunFinal(Base& g , double c, int mode)
         if (sNode == tNode)
             continue;
 
-        bool res = g.reachfinal(sNode, tNode, mode, rmax);
+        if (g.outDeg[sNode] == 0 || g.inDeg[tNode] == 0) numImmNegQuery++;
+        bool res;
+        if (runOracle)
+            g.reachOracle(sNode, tNode, mode, rmax);
+        else
+            res = g.reachfinal(sNode, tNode, mode, rmax);
 
-        if (hopCnt < 0) {
-            numNegQuery++;
-            // if (res) {
-            //     cout<<"[ERROR] False positive, s = " << sNode << ", t = " << tNode << ", hopCnt = " << hopCnt << endl;
-            //     exit(0);
-            // }
-        } else {
-            numPosQuery++;
-            if (!res) {
-                // cout << "False negative, s = " << sNode << ", t = " << tNode << ", hopCnt = " << hopCnt << endl;
-                g.falseNegatives++;
-            }
+        if (!res) numNegQuery++;
+        else numPosQuery++;
+        
+        if (!runOracle && hopCnt >= 0 && !res) {
+            cout << "False negative, s = " << sNode << ", t = " << tNode << ", hopCnt = " << hopCnt << endl;
+            g.falseNegatives++;
         }
 
         qCnt++;
@@ -44,6 +44,7 @@ void RunFinal(Base& g , double c, int mode)
             printf("Query time = %lf ms\n", g.timeQueries);
             if (hopCnt < 0) printf("Negative, ");
             else printf("Positive, ");
+            printf("#Immediately negative (cumulative) = %d\n", numImmNegQuery);
             if (prevTime == -1) avgTime = g.timeQueries / (double)miniBatchSz;
             else avgTime = (g.timeQueries - prevTime) / (double)miniBatchSz;
             printf("avg query time = %lf\n", avgTime);
@@ -55,9 +56,9 @@ void RunFinal(Base& g , double c, int mode)
 
 int main(int argc, char **argv)
 {
-	if (!(argc >= 6 && argc <= 9))
+	if (!(argc >= 5 && argc <= 9))
     {
-        printf("Usage: %s path_to_file graph_name num_partitions mode rmax [alpha=0.2] [start_ratio=100] [step=10]\n", argv[0]);
+        printf("Usage: %s path_to_file graph_name num_partitions mode [rmax] [alpha=0.2] [start_ratio=100] [step=10]\n", argv[0]);
         printf("You entered:");
         for (int i = 0; i < argc; i++)
             printf("%s ", argv[i]);
@@ -67,15 +68,15 @@ int main(int argc, char **argv)
 
     char graphFile[FILELEN], updateFile[FILELEN], queryFile[FILELEN];
     sprintf(graphFile, "%s/graph.%s", argv[1], argv[2]);
+    // sprintf(graphFile, "%s/out.%s", argv[1], argv[2]);
     sprintf(updateFile, "%s/update.%s", argv[1], argv[2]);
-    sprintf(queryFile, "%s/evenSplit/query.%s", argv[1], argv[2]);
+    sprintf(queryFile, "%s/query.%s", argv[1], argv[2]);
     int num_partitions = atoi(argv[3]);
     int mode = atoi(argv[4]);
 	int querySize = 1000;  // Meaningless except for generating query
     double theta = 1;
     double alpha = 0.2, start_ratio = 100, step = 10;
-    // double currRmax = 1e-7;  // Only meaningful for Push (approximate method)
-    double currRmax = atof(argv[5]);
+    double currRmax = -1;
     if (argc >= 7)
     {
         alpha = atof(argv[6]);
@@ -88,10 +89,18 @@ int main(int argc, char **argv)
     }
 
 	Base g(graphFile, updateFile, queryFile, querySize, theta, alpha, num_partitions, start_ratio, step);
+    double rmaxCoeff = 100.;
+    if (argc >= 6)
+        currRmax = atof(argv[5]);
+    else {
+        currRmax = rmaxCoeff / g.m;
+        cout << "rmax = " << rmaxCoeff << " / m = " << currRmax << endl;
+    }
 
     // Update and query in batches
     char currUpdateFile[FILELEN], currQueryFile[FILELEN];
-    printf("Command: ");
+    if (runOracle) printf("Command (ORACLE): ");
+    else printf("Command: ");
     for (int i = 0; i < argc; i++)
         printf("%s ", argv[i]);
     printf("\n");
@@ -114,6 +123,8 @@ int main(int argc, char **argv)
             curr_g.loadUpdateFromFile(currUpdateFile);
         }
 
+        if (i > 0) break;   // Only run 0-th snapshot query
+        
         // Query
         printf("%d-th query...\n", i);
         sprintf(currQueryFile, "%s%d", queryFile, i);
@@ -127,9 +138,9 @@ int main(int argc, char **argv)
             (double)(curr_g.timeUpdates) / (double)(curr_g.numUpdates));
         printf("Query time = %lf ms, #Queries = %d, Avg query time = %lf\n", curr_g.timeQueries, curr_g.numQueries, \
             (double)(curr_g.timeQueries) / (double)(curr_g.numQueries));
-        printf("Positive query time = %lf ms, #Queries = %d, Avg positive query time = %lf\n", curr_g.timePosQueries, curr_g.numQueries - curr_g.falseNegatives, \
+        printf("Positive query time = %lf ms, #Queries = %d, Avg positive query time = %lf\n", curr_g.timePosQueries, numPosQuery, \
             (double)(curr_g.timePosQueries) / (double)(numPosQuery));
-        printf("Negative query time = %lf ms, #Queries = %d, Avg negative query time = %lf\n", curr_g.timeNegQueries, curr_g.falseNegatives, \
+        printf("Negative query time = %lf ms, #Queries = %d, Avg negative query time = %lf\n", curr_g.timeNegQueries, numNegQuery, \
             (double)(curr_g.timeNegQueries) / (double)(numNegQuery));
     }
 

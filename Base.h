@@ -63,7 +63,10 @@ public:
     int BBFS(int sourceNode, int targetNode)
     {
         if( sourceNode == targetNode ) return 0;
-        if( outDeg[sourceNode] == 0 || inDeg[targetNode] == 0 ) return -1;
+        if( outDeg[sourceNode] == 0 || inDeg[targetNode] == 0 ) {
+            // cout << "warn" << endl;
+            return -1;
+        }
 
         queue<int> candidatePush1;
         queue<int> candidatePush1_next;
@@ -84,15 +87,18 @@ public:
                 for (int i = 0; i < fwdSz; i++)
                 {
                     outNode = fwdG[curNode][i];
-                    if(!explored1[outNode])
-                    {
+                    if(!explored1[outNode]) {
+                        if (l2[outNode] != -1)
+                            return 0;
                         candidatePush1_next.push(outNode);
                         explored1[outNode] = true;
                         l1[outNode] = 0;
-                        if (l2[outNode] != -1)
-                            return 0;
                     }
                 }  
+            }
+            if (candidatePush1_next.empty()) {
+                // cout << endl << "Exit1, src = " << sourceNode << ", dst = " << targetNode << endl;
+                return -1;
             }
             while(!candidatePush2.empty())
             {
@@ -102,23 +108,25 @@ public:
                 for (int i = 0; i < bwdSz; i++)
                 {
                     inNode = bwdG[curNode][i];
-                    if(!explored2[inNode])
-                    {
+                    if(!explored2[inNode]) {
+                        if (l1[inNode] != -1)
+                            return 0;
                         candidatePush2_next.push(inNode);
                         explored2[inNode] = true;
                         l2[inNode] = 0;
-                        if (l1[inNode] != -1)
-                            return 0;
                     }
                 }
             }
-            if(candidatePush1_next.empty() || candidatePush2_next.empty())
+            if (candidatePush2_next.empty()) {
+                // cout << endl << "Exit2, src = " << sourceNode << ", dst = " << targetNode << endl;
                 return -1;
+            }
 
             swap(candidatePush1_next , candidatePush1);
             swap(candidatePush2_next , candidatePush2);
         }
 
+        // cout << "Exit2, src = " << sourceNode << ", dst = " << targetNode << endl;
         return -1;
     }
 
@@ -391,14 +399,9 @@ public:
         residue2[targetNode] = 1;
         l1[sourceNode] = 0;
         l2[targetNode] = 0;
-        int nodeNumPush1, unvisitedNumPush1;
-        int nodeNumPush2, unvisitedNumPush2;
 
-        // Counters for contraction
-        int intEdges1 = 0;
-        int intEdges2 = 0;
         int mapCnt1 = -2, mapCnt2 = -2;
-        int nLeft1 = n - 1, nLeft2 = n - 1, mLeft1 = m, mLeft2 = m; // For the cost model
+        unordered_set<int> superNeigh1, superNeigh2;
 
         while (true)
         {
@@ -407,26 +410,23 @@ public:
                 int curNode = candidatePush1.front();
                 if (!explored1[curNode])
                 {
-                    intEdges1 += outDeg[curNode];
                     explored1[curNode] = true;
                     nodetosuper1[curNode] = mapCnt1;
                 }
                 candidatePush1.pop();
                 if( residue1[curNode] / outDeg[curNode] >= rmax )
                 {
-                    int fwdSz = outDeg[curNode];
-                    int mappedNum = 0;
+                    int fwdSz = outDeg[curNode], mappedNum = 0, adj;
                     for (int i = 0; i < fwdSz; i++)
                     {
-                        int adj = fwdG[curNode][i];
+                        adj = fwdG[curNode][i];
                         if (l1[adj] == -1)
                         {
-                            nLeft1--;
-                            l1[adj] = 0;
                             if (l2[adj] != -1)
                                 return 0;
+                            l1[adj] = 0;
                         }
-                        if (nodetosuper1[adj] < -1 && nodetosuper1[adj] > mapCnt1)
+                        if (nodetosuper1[adj] < -1 && nodetosuper1[adj] > mapCnt1)  // Mapped to supernode
                             mappedNum++;
                     }
                     double baseGain;
@@ -435,10 +435,14 @@ public:
                         // Push to supernode
                         baseGain = (1-alpha)*residue1[curNode]/(outDeg[curNode] - mappedNum + 1);
                         residue1[n] += baseGain;
-                        if (residue1[n] / outDeg[n] >= rmax)
+                        if (residue1[n] / outDeg[n] >= rmax) {
+                            // cout << "candidatePush1.push(n)" << endl;
                             candidatePush1.push(n);
-                        else
+                        }
+                        else {
+                            // cout << "candidatePush1_next.push(n)" << endl;
                             candidatePush1_next.push(n);
+                        }
                     }
                     else
                         baseGain = (1-alpha)*residue1[curNode]/outDeg[curNode];
@@ -449,10 +453,14 @@ public:
                         if (!(nodetosuper1[adj] < -1 && nodetosuper1[adj] > mapCnt1))
                         {
                             residue1[adj] += baseGain;
-                            if (residue1[adj] / outDeg[adj] >= rmax)
-                            candidatePush1.push(adj);
-                        else
-                            candidatePush1_next.push(adj);
+                            if (residue1[adj] / outDeg[adj] >= rmax) {
+                                // cout << "candidatePush1.push(" << adj << ')' << endl;
+                                candidatePush1.push(adj);
+                            }
+                            else {
+                                // cout << "candidatePush1_next.push(" << adj << ')' << endl;
+                                candidatePush1_next.push(adj);
+                            }
                         }
                     }
                     residue1[curNode] = 0;
@@ -460,18 +468,25 @@ public:
                 else
                     candidatePush1_next.push(curNode);
             }
-            if(candidatePush1_next.empty())
+            if(candidatePush1_next.empty()) {
+                // cout << "Exit1, src = " << sourceNode << ", dst = " << targetNode << endl;
                 return -1;
+            }
+            
             // Perform contraction if the condition is met
             if (rmax < init_rmax)
             {
                 // Set mapping
+                // cout << "foward contraction" << endl;
                 int superDeg = 0;
-                unordered_set<int> superNeigh1;
+                // unordered_set<int> superNeigh1;
+                if (!superNeigh1.empty()) superNeigh1.clear();
+                auto nextSz = candidatePush1_next.size();
                 while (!candidatePush1_next.empty())
                 {
                     int curNode = candidatePush1_next.front();
                     candidatePush1_next.pop();
+                    if (explored1[curNode] || curNode == n) continue;
                     int fwdSz = outDeg[curNode];
                     for (int i = 0; i < fwdSz; i++)
                     {
@@ -487,10 +502,6 @@ public:
                     nodetosuper1[curNode] = mapCnt1;
                 }
                 outDeg[n] = superDeg;
-
-                // Clear counters
-                mLeft1 -= intEdges1;
-                intEdges1 = 0;
 
                 // Re-initialize
                 candidatePush1.push(n);
@@ -510,25 +521,23 @@ public:
                 int curNode = candidatePush2.front();
                 if (!explored2[curNode])
                 {
-                    intEdges2 += inDeg[curNode];
                     explored2[curNode] = true;
                     nodetosuper2[curNode] = mapCnt2;
                 }
                 candidatePush2.pop();
                 if( residue2[curNode] / inDeg[curNode] >= rmax )
                 {
-                    int bwdSz = inDeg[curNode];
-                    int mappedNum = 0;
+                    int bwdSz = inDeg[curNode], mappedNum = 0, adj;
                     for (int i = 0; i < bwdSz; i++)
                     {
-                        int adj = bwdG[curNode][i];
+                        adj = bwdG[curNode][i];
                         if (l2[adj] == -1)
                         {
-                            nLeft2--;
-                            l2[adj] = 0;
                             if (l1[adj] != -1)
                                 return 0;
+                            l2[adj] = 0;
                         }
+
                         if (nodetosuper2[adj] < -1 && nodetosuper2[adj] > mapCnt2)  // Mapped to supernode
                             mappedNum++;
                     }
@@ -563,18 +572,23 @@ public:
                 else
                     candidatePush2_next.push(curNode);
             }
-            if(candidatePush2_next.empty())
+            if(candidatePush2_next.empty()) {
+                // cout << "Exit 2, src = " << sourceNode << ", dst = " << targetNode << endl;
                 return -1;
+            }
             
             if (rmax < init_rmax)
             {
                 // Set mapping
                 int superDeg = 0;
-                unordered_set<int> superNeigh2;
+                // unordered_set<int> superNeigh2;
+                if (!superNeigh2.empty()) superNeigh2.clear();
+                auto nextSz = candidatePush2_next.size();
                 while (!candidatePush2_next.empty())
                 {
                     int curNode = candidatePush2_next.front();
                     candidatePush2_next.pop();
+                    if (explored2[curNode] || curNode == n) continue;
                     int bwdSz = inDeg[curNode];
                     for (int i = 0; i < bwdSz; i++)
                     {
@@ -590,10 +604,6 @@ public:
                     nodetosuper2[curNode] = mapCnt2;
                 }
                 inDeg[n] = superDeg;
-
-                // Clear counters
-                mLeft2 -= intEdges2;
-                intEdges2 = 0;
 
                 // Re-initialize
                 candidatePush2.push(n);
@@ -875,11 +885,7 @@ public:
 
         struct timespec start_at, end_at;
         
-        // init_rmax = 10000.0 / (48.0 * n * log(m));
-        // double start_rmax = 0.01;
         double start_rmax = init_rmax * 100.0;
-        // if (start_rmax <= init_rmax)
-        //     start_rmax = init_rmax * 10.0;
         double  rmax = start_rmax;
         queue<int> candidatePush1;
         queue<int> candidatePush1_next;
@@ -891,14 +897,14 @@ public:
         residue2[targetNode] = 1;
         l1[sourceNode] = 0;
         l2[targetNode] = 0;
-        int nodeNumPush1, unvisitedNumPush1;
-        int nodeNumPush2, unvisitedNumPush2;
 
         // Counters for contraction
         int intEdges1 = 0;
         int intEdges2 = 0;
         int mapCnt1 = -2, mapCnt2 = -2;
         int nLeft1 = n - 1, nLeft2 = n - 1, mLeft1 = m, mLeft2 = m; // For the cost model
+        bool forceSwitch = false;   // Force switch to BiBFS when no new vertices are contracted
+        unordered_set<int> superNeigh1, superNeigh2;
 
         double cost_push, cost_bbfs, lambda = 1.76, coeff = 1.0 / (log(n) + 0.58);
         int curRounds = 0;
@@ -907,27 +913,28 @@ public:
             while(!candidatePush1.empty())
             {
                 int curNode = candidatePush1.front();
-                if (!explored1[curNode])
-                {
-                    intEdges1 += outDeg[curNode];
-                    explored1[curNode] = true;
-                    nodetosuper1[curNode] = mapCnt1;
-                }
                 candidatePush1.pop();
                 if( residue1[curNode] / outDeg[curNode] >= rmax )
                 {
-                    int fwdSz = outDeg[curNode];
-                    int mappedNum = 0;
+                    if (!explored1[curNode])
+                    {
+                        intEdges1 += outDeg[curNode];
+                        explored1[curNode] = true;
+                        nodetosuper1[curNode] = mapCnt1;
+                    }
+                    int fwdSz = outDeg[curNode], mappedNum = 0, adj;
                     for (int i = 0; i < fwdSz; i++)
                     {
-                        int adj = fwdG[curNode][i];
+                        adj = fwdG[curNode][i];
                         if (l1[adj] == -1)
                         {
-                            nLeft1--;
-                            l1[adj] = 0;
                             if (l2[adj] != -1)
                                 return 0;
+                            nLeft1--;
+                            l1[adj] = 0;
                         }
+                        if (nodetosuper1[adj] < -1 && nodetosuper1[adj] > mapCnt1)  // Mapped to supernode
+                            mappedNum++;
                     }
                     double baseGain;
                     if (mappedNum > 0)
@@ -935,10 +942,14 @@ public:
                         // Push to supernode
                         baseGain = (1-alpha)*residue1[curNode]/(outDeg[curNode] - mappedNum + 1);
                         residue1[n] += baseGain;
-                        if (residue1[n] / outDeg[n] >= rmax)
+                        if (residue1[n] / outDeg[n] >= rmax) {
+                            // cout << "candidatePush1.push(n)" << endl;
                             candidatePush1.push(n);
-                        else
+                        }
+                        else {
+                            // cout << "candidatePush1_next.push(n)" << endl;
                             candidatePush1_next.push(n);
+                        }
                     }
                     else
                         baseGain = (1-alpha)*residue1[curNode]/outDeg[curNode];
@@ -950,9 +961,9 @@ public:
                         {
                             residue1[adj] += baseGain;
                             if (residue1[adj] / outDeg[adj] >= rmax)
-                            candidatePush1.push(adj);
-                        else
-                            candidatePush1_next.push(adj);
+                                candidatePush1.push(adj);
+                            else
+                                candidatePush1_next.push(adj);
                         }
                     }
                     residue1[curNode] = 0;
@@ -960,19 +971,29 @@ public:
                 else
                     candidatePush1_next.push(curNode);
             }
-            if(candidatePush1_next.empty())
+            if(candidatePush1_next.empty()) {
+                // cout << "Exit1, src = " << sourceNode << ", dst = " << targetNode << endl;
                 return -1;
+            }
             
             // Perform contraction if the condition is met
             if (rmax < init_rmax)
             {
                 // Set mapping
                 int superDeg = 0;
-                unordered_set<int> superNeigh1;
+                if (!superNeigh1.empty()) superNeigh1.clear();
+                auto nextSz = candidatePush1_next.size();
+                if (nextSz == 1 && candidatePush1_next.front() == n) {
+                    cout << "warn1, src = " << sourceNode << ", dst = " << targetNode << endl;
+                    superDeg = outDeg[n];
+                    forceSwitch = true;
+                    candidatePush1_next.pop();
+                }
                 while (!candidatePush1_next.empty())
                 {
                     int curNode = candidatePush1_next.front();
                     candidatePush1_next.pop();
+                    if (explored1[curNode] || curNode == n) continue;
                     int fwdSz = outDeg[curNode];
                     for (int i = 0; i < fwdSz; i++)
                     {
@@ -988,6 +1009,10 @@ public:
                     nodetosuper1[curNode] = mapCnt1;
                 }
                 outDeg[n] = superDeg;
+                if (1. / double(superDeg) < init_rmax) {
+                    // cout << "warn1.1, src = " << sourceNode << ", dst = " << targetNode << endl;
+                    forceSwitch = true;
+                }
 
                 // Clear counters
                 mLeft1 -= intEdges1;
@@ -1009,26 +1034,25 @@ public:
             while(!candidatePush2.empty())
             {
                 int curNode = candidatePush2.front();
-                if (!explored2[curNode])
-                {
-                    intEdges2 += inDeg[curNode];
-                    explored2[curNode] = true;
-                    nodetosuper2[curNode] = mapCnt2;
-                }
                 candidatePush2.pop();
                 if( residue2[curNode] / inDeg[curNode] >= rmax )
                 {
-                    int bwdSz = inDeg[curNode];
-                    int mappedNum = 0;
+                    if (!explored2[curNode])
+                    {
+                        intEdges2 += inDeg[curNode];
+                        explored2[curNode] = true;
+                        nodetosuper2[curNode] = mapCnt2;
+                    }
+                    int bwdSz = inDeg[curNode], mappedNum = 0, adj;
                     for (int i = 0; i < bwdSz; i++)
                     {
-                        int adj = bwdG[curNode][i];
+                        adj = bwdG[curNode][i];
                         if (l2[adj] == -1)
                         {
-                            nLeft2--;
-                            l2[adj] = 0;
                             if (l1[adj] != -1)
                                 return 0;
+                            nLeft2--;
+                            l2[adj] = 0;
                         }
 
                         if (nodetosuper2[adj] < -1 && nodetosuper2[adj] > mapCnt2)  // Mapped to supernode
@@ -1067,18 +1091,28 @@ public:
                     candidatePush2_next.push(curNode);
                 }
             }
-            if(candidatePush2_next.empty())
+            if(candidatePush2_next.empty()) {
+                // cout << "Exit 2, src = " << sourceNode << ", dst = " << targetNode << endl;
                 return -1;
+            }
             
             if (rmax < init_rmax)
             {
                 // Set mapping
                 int superDeg = 0;
-                unordered_set<int> superNeigh2;
+                if (!superNeigh2.empty()) superNeigh2.clear();
+                auto nextSz = candidatePush2_next.size();
+                if (nextSz == 1 && candidatePush2_next.front() == n) {
+                    cout << "warn2, src = " << sourceNode << ", dst = " << targetNode << endl;
+                    superDeg = inDeg[n];
+                    forceSwitch = true;
+                    candidatePush2_next.pop();
+                }
                 while (!candidatePush2_next.empty())
                 {
                     int curNode = candidatePush2_next.front();
                     candidatePush2_next.pop();
+                    if (explored2[curNode] || curNode == n) continue;
                     int bwdSz = inDeg[curNode];
                     for (int i = 0; i < bwdSz; i++)
                     {
@@ -1094,6 +1128,10 @@ public:
                     nodetosuper2[curNode] = mapCnt2;
                 }
                 inDeg[n] = superDeg;
+                if (1. / double(superDeg) < init_rmax) {
+                    // cout << "warn2.1, src = " << sourceNode << ", dst = " << targetNode << endl;
+                    forceSwitch = true;
+                }
 
                 // Clear counters
                 mLeft2 -= intEdges2;
@@ -1116,8 +1154,10 @@ public:
             // All contracted vertices are marked as explored
 
             // Cost model for switching to BBFS (break).
-            cost_push = 2 * lambda * (1.0 / (alpha * init_rmax) - 1.0 / (alpha * rmax)) \
-                + lambda * (nLeft1 + nLeft2) / (coeff / (alpha * (1 - alpha) * init_rmax)) * (1.0 / (alpha * init_rmax) - 1.0 / (alpha * start_rmax));
+            if (forceSwitch) break;
+            double alpha_init_rmax = alpha * init_rmax, rev_alpha_init_rmax = 1. / alpha_init_rmax;
+            cost_push = lambda * (2 * (rev_alpha_init_rmax - 1.0 / (alpha * rmax)) \
+                + (nLeft1 + nLeft2) / (coeff / (alpha_init_rmax * (1 - alpha))) * (rev_alpha_init_rmax - 1.0 / (alpha * start_rmax)));
             mLeft1 -= intEdges1;
             mLeft2 -= intEdges2;
             cost_bbfs = (nLeft1 + mLeft1) + (nLeft2 + mLeft2);
@@ -1135,45 +1175,54 @@ public:
             {
                 int curNode = candidatePush1.front();
                 candidatePush1.pop();
+                if (explored1[curNode]) continue;
+                else explored1[curNode] = true;
                 int fwdSz = outDeg[curNode], outNode;
                 for (int i = 0; i < fwdSz; i++)
                 {
                     outNode = fwdG[curNode][i];
                     if(!explored1[outNode])
                     {
-                        candidatePush1_next.push(outNode);
-                        explored1[outNode] = true;
-                        l1[outNode] = 0;
                         if (l2[outNode] != -1)
                             return 0;
+                        candidatePush1_next.push(outNode);
+                        l1[outNode] = 0;
                     }
                 }  
+            }
+            if (candidatePush1_next.empty()) {
+                // cout << "Exit 3, src = " << sourceNode << ", dst = " << targetNode << endl;
+                return -1;
             }
             while(!candidatePush2.empty())
             {
                 int curNode = candidatePush2.front();
                 candidatePush2.pop();
+                if (explored2[curNode]) continue;
+                else explored2[curNode] = true;
                 int bwdSz = inDeg[curNode], inNode;
                 for (int i = 0; i < bwdSz; i++)
                 {
                     inNode = bwdG[curNode][i];
                     if(!explored2[inNode])
                     {
-                        candidatePush2_next.push(inNode);
-                        explored2[inNode] = true;
-                        l2[inNode] = 0;
                         if (l1[inNode] != -1)
                             return 0;
+                        candidatePush2_next.push(inNode);
+                        l2[inNode] = 0;
                     }
                 }
             }
-            if(candidatePush1_next.empty() || candidatePush2_next.empty())
+            if (candidatePush2_next.empty()) {
+                // cout << "Exit 4, src = " << sourceNode << ", dst = " << targetNode << endl;
                 return -1;
+            }
 
             swap(candidatePush1_next , candidatePush1);
             swap(candidatePush2_next , candidatePush2);
         }
 
+        // cout << "Exit 5, src = " << sourceNode << ", dst = " << targetNode << endl;
         return -1;
     }
 
@@ -1536,7 +1585,8 @@ public:
     
     bool reachfinal(int sourceNode, int targetNode, int mode, double init_rmax)
     {
-        InitPara(sourceNode, targetNode);
+        if (sourceNode != targetNode && outDeg[sourceNode] != 0 && inDeg[targetNode] != 0)
+            InitPara(sourceNode, targetNode);
 
         int res;
         struct timespec start_at, end_at;

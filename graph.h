@@ -92,12 +92,18 @@ public:
 
         ifstream infile(datasetPath);
         assert(infile.is_open());
-        while(infile >> fromNode >> toNode) // Get number of nodes
-        {
-            if (n < fromNode + 1)
-                n = fromNode + 1;
-            if (n < toNode + 1)
-                n = toNode + 1;
+        string tmp;
+        size_t fromNodePos, toNodePos;
+        while (getline(infile, tmp)) {
+            if (tmp[0] == '%') continue;
+            fromNodePos = tmp.find(' ');
+            if (fromNodePos == string::npos) continue;
+            toNodePos = tmp.find(' ', fromNodePos + 1);
+            if (toNodePos == string::npos) toNodePos = tmp.length();
+            fromNode = stoi(tmp.substr(0, fromNodePos));
+            toNode = stoi(tmp.substr(fromNodePos + 1, toNodePos - fromNodePos - 1));
+            if (n < fromNode + 1) n = fromNode + 1;
+            if (n < toNode + 1) n = toNode + 1;
         }
         infile.close();
 
@@ -114,11 +120,18 @@ public:
         bwdG[n].resize(n, -1);
 
         infile.open(datasetPath);
-        while(infile >> fromNode >> toNode){
-        	fwdG[fromNode].push_back(toNode);
-        	bwdG[toNode].push_back(fromNode);
+        while (getline(infile, tmp)) {
+            if (tmp[0] == '%') continue;
+            fromNodePos = tmp.find(' ');
+            if (fromNodePos == string::npos) continue;
+            toNodePos = tmp.find(' ', fromNodePos + 1);
+            if (toNodePos == string::npos) toNodePos = tmp.length();
+            fromNode = stoi(tmp.substr(0, fromNodePos));
+            toNode = stoi(tmp.substr(fromNodePos + 1, toNodePos - fromNodePos - 1));
+            fwdG[fromNode].push_back(toNode);
             outDeg[fromNode]++;
-        	inDeg[toNode]++;
+            bwdG[toNode].push_back(fromNode);
+            inDeg[toNode]++;
             m++;
         }
         cout<<"m = "<<m<<endl;
@@ -203,6 +216,7 @@ public:
     {
         struct timespec start_at, end_at;
         double update_time = 0;
+        auto preNumUpdates = numUpdates;
         FILE *updatePtr = fopen(currUpdateFile, "r");
         char t;
         int u, v, currTimestamp;
@@ -262,7 +276,8 @@ public:
         }
 
         fclose(updatePtr);
-        printf("Update time = %lf ms\n", update_time);
+        printf("Avg Update time = %lf ms\n", update_time / (double)(numUpdates - preNumUpdates));
+        printf("Update time = %lf ms, cur numUpdates = %d\n", update_time, numUpdates - preNumUpdates);
         return currTimestamp;
     }
 
