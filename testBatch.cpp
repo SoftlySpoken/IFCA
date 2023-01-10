@@ -3,7 +3,7 @@
 using namespace std;
 
 unsigned numPosQuery = 0, numNegQuery = 0, numImmNegQuery = 0;
-bool runOracle = true;
+bool runOracle = false;
 
 void RunFinal(Base& g , double c, int mode)
 {
