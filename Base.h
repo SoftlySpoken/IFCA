@@ -25,9 +25,11 @@ public:
     double alpha;
     double theta;
     double start_ratio, step;
+    double rmaxCoeff;
 
-    Base(string dPath , string uPath, string qPath , int qSize, double theta_, double alpha_, int num_partitions, double _start_ratio=100, double _step=10): Graph(dPath, uPath, qPath, qSize),
-    start_ratio(_start_ratio), step(_step)
+    Base(string dPath , string uPath, string qPath , int qSize, double theta_, double alpha_, int num_partitions, \
+    double _start_ratio=100, double _step=10, double _rmaxCoeff=100): Graph(dPath, uPath, qPath, qSize),
+    start_ratio(_start_ratio), step(_step), rmaxCoeff(_rmaxCoeff)
     {
         LoadGraph(num_partitions);
 
@@ -885,7 +887,7 @@ public:
 
         struct timespec start_at, end_at;
         
-        double start_rmax = init_rmax * 100.0;
+        double start_rmax = init_rmax * start_ratio;
         double  rmax = start_rmax;
         queue<int> candidatePush1;
         queue<int> candidatePush1_next;
@@ -1165,7 +1167,7 @@ public:
             if (cost_push > cost_bbfs || curRounds == rounds)
                 break;
 
-            rmax /= 10;
+            rmax /= step;
         }
 
         // BBFS
@@ -1587,6 +1589,8 @@ public:
     {
         if (sourceNode != targetNode && outDeg[sourceNode] != 0 && inDeg[targetNode] != 0)
             InitPara(sourceNode, targetNode);
+        if (init_rmax == -1)
+            init_rmax = rmaxCoeff / double(m);
 
         int res;
         struct timespec start_at, end_at;

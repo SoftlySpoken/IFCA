@@ -88,14 +88,14 @@ int main(int argc, char **argv)
         }
     }
 
-	Base g(graphFile, updateFile, queryFile, querySize, theta, alpha, num_partitions, start_ratio, step);
     double rmaxCoeff = 100.;
-    if (argc >= 6)
+    if (argc >= 6) {
         currRmax = atof(argv[5]);
-    else {
-        currRmax = rmaxCoeff / g.m;
-        cout << "rmax = " << rmaxCoeff << " / m = " << currRmax << endl;
+        rmaxCoeff = -1;
     }
+    else
+        cout << "rmax = " << rmaxCoeff << " / m" << endl;
+	Base g(graphFile, updateFile, queryFile, querySize, theta, alpha, num_partitions, start_ratio, step, rmaxCoeff);
 
     // Update and query in batches
     char currUpdateFile[FILELEN], currQueryFile[FILELEN];
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
             curr_g.loadUpdateFromFile(currUpdateFile);
         }
 
-        if (i > 0) break;   // Only run 0-th snapshot query
+        // if (i > 0) break;   // Only run 0-th snapshot query
         
         // Query
         printf("%d-th query...\n", i);
